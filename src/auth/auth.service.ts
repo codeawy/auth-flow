@@ -5,6 +5,7 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { MailService } from 'src/mail/mail.service';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 
 @Injectable()
 export class AuthService {
@@ -51,6 +52,56 @@ export class AuthService {
       return user;
     } catch (error) {
       this.logger.error(error);
+    }
+  }
+
+  async verifyEmail(verifyEmailDto: VerifyEmailDto) {
+    try {
+      const { token } = verifyEmailDto;
+
+      const verificationToken = await this.prisma.verificationToken.findUnique({
+        where: {
+          token,
+        },
+      });
+
+      if (!verificationToken) {
+        throw new BadRequestException({
+          message: 'Invalid verification token',
+          description: 'Verification token is invalid or expired',
+        });
+      }
+
+      if (new Date() > verificationToken.expires) {
+        await this.prisma.verificationToken.delete({
+          where: {
+            id: verificationToken.id,
+          },
+        });
+        throw new BadRequestException({
+          message: 'Verification token expired',
+          description: 'Verification token is expired',
+        });
+      }
+
+      // Update user's email verification status
+      await this.userService.markEmailAsVerified(verificationToken.userId);
+
+      // Delete the used token
+      await this.prisma.verificationToken.delete({
+        where: {
+          id: verificationToken.id,
+        },
+      });
+
+      return {
+        message: 'Email verified successfully',
+        description:
+          'Email verification completed successfully, You can now login',
+      };
+    } catch (error) {
+      this.logger.error(error);
+      throw error;
     }
   }
 

@@ -20,4 +20,15 @@ export class UsersService {
       },
     });
   }
+
+  async markEmailAsVerified(userId: string) {
+    return this.prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        isEmailVerified: true,
+      },
+    });
+  }
 }
