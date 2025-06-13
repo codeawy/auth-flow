@@ -17,6 +17,8 @@ import { LoginDto } from './dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { LogoutDto } from './dto/logout.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -284,6 +286,132 @@ export class AuthService {
       message: 'Logged out successfully',
       description: 'Logged out successfully',
     };
+  }
+
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+    try {
+      const { email } = forgotPasswordDto;
+
+      // Find user by email
+      const user = await this.usersService.findByEmail(email);
+      if (!user) {
+        // For security reasons, always return success even if the email doesn't exist
+        return {
+          message: 'Password reset instructions sent',
+          description:
+            'If your email is registered, you will receive password reset instructions',
+        };
+      }
+
+      // Delete any existing password reset tokens for this user
+      await this.prisma.passwordResetToken.deleteMany({
+        where: {
+          userId: user.id,
+        },
+      });
+
+      // Generate a random 6-character token
+      const resetToken = Math.random()
+        .toString(36)
+        .substring(2, 8)
+        .toUpperCase();
+      // Set token expiration time (15 minutes)
+      const expires = new Date();
+      expires.setMinutes(expires.getMinutes() + 15);
+
+      // Save the token in the database
+      await this.prisma.passwordResetToken.create({
+        data: {
+          token: resetToken,
+          expires,
+          userId: user.id,
+        },
+      });
+
+      // Send password reset email
+      await this.mailService.sendPasswordResetEmail(
+        user.email,
+        resetToken,
+        user.firstName as string,
+      );
+
+      return {
+        message: 'Password reset instructions sent',
+        description:
+          'If your email is registered, you will receive password reset instructions',
+      };
+    } catch (error) {
+      this.logger.error(error);
+      throw error;
+    }
+  }
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    try {
+      const { token, password } = resetPasswordDto;
+
+      // Find the password reset token
+      const passwordResetToken =
+        await this.prisma.passwordResetToken.findUnique({
+          where: {
+            token,
+          },
+        });
+
+      if (!passwordResetToken) {
+        throw new BadRequestException({
+          message: 'Invalid reset token',
+          description: 'The password reset token is invalid or has expired',
+        });
+      }
+
+      // Check if token is expired
+      if (new Date() > passwordResetToken.expires) {
+        // Delete the expired token
+        await this.prisma.passwordResetToken.delete({
+          where: {
+            id: passwordResetToken.id,
+          },
+        });
+        throw new BadRequestException({
+          message: 'Token expired',
+          description:
+            'The password reset token has expired. Please request a new one.',
+        });
+      }
+
+      // Hash the new password
+      const hashedPassword = bcrypt.hashSync(password, 10);
+
+      // Update the user's password
+      await this.usersService.updatePassword(
+        passwordResetToken.userId,
+        hashedPassword,
+      );
+
+      // Delete all password reset tokens for this user
+      await this.prisma.passwordResetToken.deleteMany({
+        where: {
+          userId: passwordResetToken.userId,
+        },
+      });
+
+      // Delete all refresh tokens for this user to force re-login with the new password
+      await this.prisma.refreshToken.deleteMany({
+        where: {
+          userId: passwordResetToken.userId,
+        },
+      });
+
+      return {
+        message: 'Password reset successful',
+        description:
+          'Your password has been reset successfully. You can now login with your new password.',
+      };
+    } catch (error) {
+      this.logger.error(error);
+      throw error;
+    }
   }
 
   private async createVerificationToken(userId: string) {

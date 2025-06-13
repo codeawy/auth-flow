@@ -35,4 +35,30 @@ export class MailService {
       this.logger.error(error);
     }
   }
+
+  async sendPasswordResetEmail(
+    email: string,
+    token: string,
+    firstName?: string,
+  ) {
+    try {
+      await this.mailerService.sendMail({
+        to: email,
+        subject: 'Reset your password',
+        template: 'password-reset',
+        context: {
+          token,
+          name: firstName ?? 'User',
+          appName: this.configService.get<string>('APP_NAME'),
+          resetUrl: `${this.configService.get<string>(
+            'FRONTEND_URL',
+          )}/reset-password`,
+          expiresIn: '15 minutes',
+        },
+      });
+      this.logger.log('Password reset email sent');
+    } catch (error) {
+      this.logger.error(error);
+    }
+  }
 }
