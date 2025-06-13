@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { RegisterDto } from './dto/register.dto';
 import { UsersService } from 'src/users/users.service';
 import * as bcrypt from 'bcrypt';
@@ -8,6 +13,9 @@ import { MailService } from 'src/mail/mail.service';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { VerificationToken } from '@prisma/client';
+import { LoginDto } from './dto/login.dto';
+import { JwtService } from '@nestjs/jwt';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -16,8 +24,9 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly prisma: PrismaService,
-    private readonly ConfigService: ConfigService,
+    private readonly configService: ConfigService,
     private readonly mailService: MailService,
+    private readonly jwtService: JwtService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -140,6 +149,9 @@ export class AuthService {
         verificationToken = await this.createVerificationToken(user.id);
       }
 
+      // Update user's email verification status
+      await this.usersService.markEmailAsVerified(verificationToken.userId);
+
       await this.mailService.sendVerificationEmail(
         user.email,
         verificationToken.token,
@@ -156,6 +168,43 @@ export class AuthService {
     }
   }
 
+  async login(loginDto: LoginDto) {
+    const user = await this.usersService.findByEmail(loginDto.email);
+    if (!user) {
+      throw new BadRequestException('Invalid credentials');
+    }
+
+    // Check if the user has a password (might be null for OAuth users)
+    if (!user.password) {
+      throw new UnauthorizedException(
+        'This account cannot be accessed with password. Please use social login.',
+      );
+    }
+
+    const isPasswordValid = bcrypt.compareSync(
+      loginDto.password,
+      user.password,
+    );
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.isEmailVerified) {
+      throw new UnauthorizedException(
+        'Email not verified. A new verification token has been sent.',
+      );
+    }
+
+    const accessToken = this.generateAccessToken(user.id, user.email);
+    const refreshToken = await this.generateRefreshToken(user.id);
+
+    return {
+      accessToken,
+      refreshToken,
+    };
+  }
+
   private async createVerificationToken(userId: string) {
     // ! be careful with this if you don't need to save all previous tokens
     await this.prisma.verificationToken.deleteMany({
@@ -167,7 +216,7 @@ export class AuthService {
     // Generate a 4-digit verification code
     const verificationCode = Math.floor(1000 + Math.random() * 9000).toString();
     const tokenExpireMinutes = parseInt(
-      this.ConfigService.get<string>(
+      this.configService.get<string>(
         'VERIFICATION_TOKEN_EXPIRY_MINUTES',
       ) as string,
       10,
@@ -182,6 +231,46 @@ export class AuthService {
         expires,
         userId,
       },
+    });
+  }
+
+  private async generateRefreshToken(userId: string): Promise<string> {
+    // Delete any existing refresh tokens for this user that might be close to expiration
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    await this.prisma.refreshToken.deleteMany({
+      where: {
+        userId,
+        expires: { lt: oneWeekAgo },
+      },
+    });
+
+    const jwtToken = this.jwtService.sign(
+      { userId },
+      {
+        secret: this.configService.get<string>('JWT_SECRET'),
+        expiresIn: '7d', // Refresh token expires in 7 days
+      },
+    );
+
+    await this.prisma.refreshToken.create({
+      data: {
+        token: jwtToken,
+        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        userId,
+      },
+    });
+
+    return jwtToken;
+  }
+
+  private generateAccessToken(userId: string, email: string) {
+    const payload = { sub: userId, email };
+
+    return this.jwtService.sign(payload, {
+      secret: this.configService.get<string>('JWT_SECRET'),
+      expiresIn: '15m', // Access token expires in 15 minutes
     });
   }
 }
