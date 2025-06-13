@@ -15,7 +15,7 @@ import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { VerificationToken } from '@prisma/client';
 import { LoginDto } from './dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
-import { randomBytes } from 'crypto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 @Injectable()
 export class AuthService {
@@ -202,6 +202,49 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
+    };
+  }
+
+  async refreshToken(refreshTokenDto: RefreshTokenDto) {
+    const { token } = refreshTokenDto;
+
+    const refreshToken = await this.prisma.refreshToken.findUnique({
+      where: {
+        token,
+      },
+    });
+
+    if (!refreshToken) {
+      throw new BadRequestException('Invalid refresh token');
+    }
+
+    // Check if token is expired
+    if (new Date() > refreshToken.expires) {
+      await this.prisma.refreshToken.delete({
+        where: {
+          id: refreshToken.id,
+        },
+      });
+
+      throw new BadRequestException('Refresh token expired');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id: refreshToken.userId,
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid credentials');
+    }
+
+    const accessToken = this.generateAccessToken(user.id, user.email);
+    const newRefreshToken = await this.generateRefreshToken(user.id);
+
+    return {
+      accessToken,
+      refreshToken: newRefreshToken,
     };
   }
 
