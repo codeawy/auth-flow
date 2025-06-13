@@ -6,13 +6,15 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { MailService } from 'src/mail/mail.service';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
+import { VerificationToken } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
-    private readonly userService: UsersService,
+    private readonly usersService: UsersService,
     private readonly prisma: PrismaService,
     private readonly ConfigService: ConfigService,
     private readonly mailService: MailService,
@@ -20,7 +22,7 @@ export class AuthService {
 
   async register(registerDto: RegisterDto) {
     try {
-      const existingUser = await this.userService.findByEmail(
+      const existingUser = await this.usersService.findByEmail(
         registerDto.email,
       );
 
@@ -36,7 +38,7 @@ export class AuthService {
         10,
       );
 
-      const user = await this.userService.create({
+      const user = await this.usersService.create({
         ...registerDto,
         password: hashedPassword,
       });
@@ -85,7 +87,7 @@ export class AuthService {
       }
 
       // Update user's email verification status
-      await this.userService.markEmailAsVerified(verificationToken.userId);
+      await this.usersService.markEmailAsVerified(verificationToken.userId);
 
       // Delete the used token
       await this.prisma.verificationToken.delete({
@@ -98,6 +100,55 @@ export class AuthService {
         message: 'Email verified successfully',
         description:
           'Email verification completed successfully, You can now login',
+      };
+    } catch (error) {
+      this.logger.error(error);
+      throw error;
+    }
+  }
+
+  async resendVerificationEmail(resendVerificationDto: ResendVerificationDto) {
+    try {
+      const { email } = resendVerificationDto;
+
+      // Find user by email
+      const user = await this.usersService.findByEmail(email);
+      if (!user) {
+        throw new BadRequestException('Email not registered');
+      }
+
+      // Check if email is already verified
+      if (user.isEmailVerified) {
+        return { message: 'Email is already verified' };
+      }
+
+      // Find existing verification token
+      const existingToken = await this.prisma.verificationToken.findFirst({
+        where: {
+          userId: user.id,
+          expires: {
+            gt: new Date(),
+          },
+        },
+      });
+
+      let verificationToken: VerificationToken;
+
+      if (existingToken) {
+        verificationToken = existingToken;
+      } else {
+        verificationToken = await this.createVerificationToken(user.id);
+      }
+
+      await this.mailService.sendVerificationEmail(
+        user.email,
+        verificationToken.token,
+        user.firstName as string,
+      );
+
+      return {
+        message: 'Verification email sent successfully',
+        description: 'Verification email sent successfully',
       };
     } catch (error) {
       this.logger.error(error);
