@@ -16,6 +16,7 @@ import { VerificationToken } from '@prisma/client';
 import { LoginDto } from './dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { LogoutDto } from './dto/logout.dto';
 
 @Injectable()
 export class AuthService {
@@ -245,6 +246,43 @@ export class AuthService {
     return {
       accessToken,
       refreshToken: newRefreshToken,
+    };
+  }
+
+  async logout(logoutDto: LogoutDto) {
+    const { refreshToken } = logoutDto;
+
+    const refreshTokenFromDb = await this.prisma.refreshToken.findUnique({
+      where: {
+        token: refreshToken,
+      },
+    });
+
+    if (!refreshTokenFromDb) {
+      throw new BadRequestException('Invalid refresh token');
+    }
+
+    // Check if user is exists
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id: refreshTokenFromDb.userId,
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid credentials');
+    }
+
+    // Delete all related tokens of this user
+    await this.prisma.refreshToken.deleteMany({
+      where: {
+        userId: refreshTokenFromDb.userId,
+      },
+    });
+
+    return {
+      message: 'Logged out successfully',
+      description: 'Logged out successfully',
     };
   }
 
