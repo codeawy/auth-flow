@@ -414,6 +414,10 @@ export class AuthService {
     }
   }
 
+  async getCurrentUser(userId: string) {
+    return await this.usersService.findById(userId);
+  }
+
   private async createVerificationToken(userId: string) {
     // ! be careful with this if you don't need to save all previous tokens
     await this.prisma.verificationToken.deleteMany({

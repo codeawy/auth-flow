@@ -1,4 +1,13 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  Get,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
@@ -8,6 +17,20 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
+import { User } from '@prisma/client';
+
+export interface RequestWithUser extends Request {
+  user: Omit<
+    User,
+    | 'password'
+    | 'verificationToken'
+    | 'refreshTokens'
+    | 'oauthAccounts'
+    | 'passwordResetToken'
+    | 'todos'
+  >;
+}
 
 @Controller('auth')
 export class AuthController {
@@ -54,5 +77,11 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return this.authService.resetPassword(resetPasswordDto);
+  }
+
+  @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  getProfile(@Request() req: RequestWithUser) {
+    return this.authService.getCurrentUser(req.user.id);
   }
 }
