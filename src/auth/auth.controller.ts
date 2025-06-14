@@ -7,6 +7,7 @@ import {
   Get,
   UseGuards,
   Request,
+  Version,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -33,7 +34,10 @@ export interface RequestWithUser extends Request {
   >;
 }
 
-@Controller('auth')
+@Controller({
+  path: 'auth',
+  version: '1',
+})
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
