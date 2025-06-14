@@ -70,42 +70,156 @@ export class AuthController {
 
   @Post('verify-email')
   @HttpCode(HttpStatus.OK)
+  @ApiBody({
+    type: VerifyEmailDto,
+    schema: {
+      example: {
+        token: 'verification-token-example',
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Email verified successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid or expired token',
+  })
   verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
     return this.authService.verifyEmail(verifyEmailDto);
   }
 
   @Post('resend-verification')
   @HttpCode(HttpStatus.OK)
+  @ApiBody({
+    type: ResendVerificationDto,
+    schema: {
+      example: {
+        email: 'user@example.com',
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Verification email sent successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid email or user not found',
+  })
   resendVerification(@Body() resendVerificationDto: ResendVerificationDto) {
     return this.authService.resendVerificationEmail(resendVerificationDto);
   }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @ApiBody({
+    type: LoginDto,
+    schema: {
+      example: {
+        email: 'user@example.com',
+        password: 'Password123!',
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'User logged in successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid credentials or unverified email',
+  })
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
 
   @Post('refresh-token')
   @HttpCode(HttpStatus.OK)
+  @ApiBody({
+    type: RefreshTokenDto,
+    schema: {
+      example: {
+        token: 'refresh-token-example',
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Token refreshed successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid or expired refresh token',
+  })
   refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
     return this.authService.refreshToken(refreshTokenDto);
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
+  @ApiBody({
+    type: LogoutDto,
+    schema: {
+      example: {
+        refreshToken: 'refresh-token-example',
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Logged out successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid refresh token',
+  })
   logout(@Body() logoutDto: LogoutDto) {
     return this.authService.logout(logoutDto);
   }
 
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
+  @ApiBody({
+    type: ForgotPasswordDto,
+    schema: {
+      example: {
+        email: 'user@example.com',
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Password reset email sent successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Email not found',
+  })
   forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     return this.authService.forgotPassword(forgotPasswordDto);
   }
 
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
+  @ApiBody({
+    type: ResetPasswordDto,
+    schema: {
+      example: {
+        token: 'reset-password-token-example',
+        password: 'NewPassword123!',
+      },
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Password reset successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid or expired token',
+  })
   resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return this.authService.resetPassword(resetPasswordDto);
   }
@@ -113,6 +227,14 @@ export class AuthController {
   @Get('profile')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'User profile retrieved successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Unauthorized - Invalid or missing JWT token',
+  })
   getProfile(@Request() req: RequestWithUser) {
     return this.authService.getCurrentUser(req.user.id);
   }
