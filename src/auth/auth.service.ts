@@ -32,7 +32,9 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async register(registerDto: RegisterDto) {
+  async register(
+    registerDto: RegisterDto,
+  ): Promise<{ message: string; description: string }> {
     try {
       const existingUser = await this.usersService.findByEmail(
         registerDto.email,
@@ -63,9 +65,13 @@ export class AuthService {
         user.firstName as string,
       );
 
-      return user;
+      return {
+        message: 'User registered successfully',
+        description: 'User registered successfully',
+      };
     } catch (error) {
       this.logger.error(error);
+      throw error;
     }
   }
 
