@@ -29,7 +29,17 @@ async function bootstrap() {
     .setTitle('Auth Flow')
     .setDescription('Auth Flow API description')
     .setVersion('1.0')
-    .addTag('auth')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT access token',
+        in: 'header',
+      },
+      'token',
+    )
     .build();
 
   const documentFactory = () => SwaggerModule.createDocument(app, config);

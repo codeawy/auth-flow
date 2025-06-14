@@ -19,7 +19,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
 import { User } from '@prisma/client';
-import { ApiBody, ApiResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiResponse } from '@nestjs/swagger';
 
 export interface RequestWithUser extends Request {
   user: Omit<
@@ -227,6 +227,7 @@ export class AuthController {
   @Get('profile')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('token')
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'User profile retrieved successfully',

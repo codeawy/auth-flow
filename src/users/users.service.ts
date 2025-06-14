@@ -36,7 +36,6 @@ export class UsersService {
         firstName: true,
         lastName: true,
         isEmailVerified: true,
-        provider: true,
       },
     });
 
