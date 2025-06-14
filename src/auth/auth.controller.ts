@@ -37,11 +37,13 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
+  @HttpCode(HttpStatus.CREATED)
   register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
   }
 
   @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
   verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
     return this.authService.verifyEmail(verifyEmailDto);
   }
@@ -53,16 +55,19 @@ export class AuthController {
   }
 
   @Post('login')
+  @HttpCode(HttpStatus.OK)
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
 
   @Post('refresh-token')
+  @HttpCode(HttpStatus.OK)
   refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
     return this.authService.refreshToken(refreshTokenDto);
   }
 
   @Post('logout')
+  @HttpCode(HttpStatus.OK)
   logout(@Body() logoutDto: LogoutDto) {
     return this.authService.logout(logoutDto);
   }
@@ -80,6 +85,7 @@ export class AuthController {
   }
 
   @Get('profile')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   getProfile(@Request() req: RequestWithUser) {
     return this.authService.getCurrentUser(req.user.id);
