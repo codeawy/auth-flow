@@ -1,26 +1,70 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { PrismaService } from '../prisma/prisma.service';
+import { User } from '@prisma/client';
 
 @Injectable()
 export class UsersService {
-  create(createUserDto: CreateUserDto) {
-    return 'This action adds a new user';
+  constructor(private readonly prisma: PrismaService) {}
+
+  async create(data: CreateUserDto): Promise<User> {
+    return this.prisma.user.create({
+      data,
+    });
   }
 
-  findAll() {
-    return `This action returns all users`;
+  async findByEmail(email: string) {
+    return this.prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+  async findById(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id,
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        isEmailVerified: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with id ${id} not found`);
+    }
+
+    return user;
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  async markEmailAsVerified(userId: string) {
+    return this.prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        isEmailVerified: true,
+      },
+    });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+  async updatePassword(userId: string, password: string) {
+    return this.prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        password,
+      },
+    });
   }
 }
