@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  app:
+    container_name: auth-flow-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "${PORT:-5001}:${PORT:-5001}"
+    environment:
+      - NODE_ENV=development
+      - PORT=${PORT:-5001}
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/auth-flow?schema=public
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION_TIME=${JWT_EXPIRATION_TIME}
+      - VERIFICATION_TOKEN_EXPIRY_MINUTES=${VERIFICATION_TOKEN_EXPIRY_MINUTES}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - MAIL_HOST=${MAIL_HOST}
+      - MAIL_PORT=${MAIL_PORT}
+      - MAIL_SECURE=${MAIL_SECURE}
+      - MAIL_USER=${MAIL_USER}
+      - MAIL_FROM=${MAIL_FROM}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME}
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    command: >
+      sh -c "pnpm prisma migrate deploy && pnpm start:dev"
+
+  postgres:
+    container_name: auth-flow-postgres
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=auth-flow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
