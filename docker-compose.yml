@@ -13,9 +13,9 @@ services:
     ports:
       - "${PORT:-5001}:${PORT:-5001}"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=${NODE_ENV}
       - PORT=${PORT:-5001}
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/auth-flow?schema=public
+      - DATABASE_URL=${DATABASE_URL}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRATION_TIME=${JWT_EXPIRATION_TIME}
       - VERIFICATION_TOKEN_EXPIRY_MINUTES=${VERIFICATION_TOKEN_EXPIRY_MINUTES}
@@ -39,9 +39,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=auth-flow
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
