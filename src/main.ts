@@ -12,6 +12,14 @@ async function bootstrap() {
   // Set global prefix for all routes
   app.setGlobalPrefix(apiPrefix);
 
+  // CORS
+  app.enableCors({
+    origin: 'http://localhost:3000',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    allowedHeaders: 'Content-Type,Authorization',
+    credentials: true,
+  });
+
   // API Versioning
   app.enableVersioning({
     type: VersioningType.URI,
